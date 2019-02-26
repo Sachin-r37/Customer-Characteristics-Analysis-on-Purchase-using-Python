@@ -1,0 +1,94 @@
+# Necessary Packages are loaded
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn import metrics
+from sklearn.cross_validation import cross_val_score
+% matplotlib inline
+
+# Social network Ads data is read to study the Age, Gender and their Salaries on purchase
+SN_Ads = pd.read_csv("Social_Network_Ads.csv")
+
+SN_Ads.head()
+SN_Ads.info()
+SN_Ads.describe()
+
+# Heat map of the Data set is generated to visualize and check any missing data.
+sns.heatmap(SN_Ads.isnull(),yticklabels=False,cbar=False,cmap='viridis')
+
+# Below graph is drawn to visualize how many purchased.
+sns.countplot(x='Purchased',data=SN_Ads)
+
+# Belowgraph os drawn to visualixe to see Gender against Purchase  
+sns.countplot(x='Purchased',hue='Gender',data=SN_Ads)
+
+# Below graph is drawn to visualize distribution of age in the date set.
+sns.distplot(SN_Ads['Age'].dropna(),kde=False,bins=30)
+
+sns.pairplot(SN_Ads)
+
+# Factor variable of Gender is converted into Binary of single variable
+sex = pd.get_dummies(SN_Ads['Gender'],drop_first=True)
+
+# Gender variable is dropped and peviously calculated variable 'Sex' is concatenated with original Data set.
+SN_Ads.drop(['Gender'],axis=1,inplace=True)
+#SN_Ads.drop(['User ID'],axis=1,inplace=True)
+SN_Ads = pd.concat([SN_Ads,sex],axis=1)
+SN_Ads.head()
+
+# Below Graph shows average estimated salary for each age in the data set.
+SN_Ads_Data = SN_Ads.drop(['User ID'],axis=1)
+#SN_Ads_Data.head()
+SN_Ads_Mean = SN_Ads_Data.groupby('Age').mean()
+
+SN_Ads_Mean['Age'] = SN_Ads_Mean.index
+#SN_Ads_Mean.head()
+
+fig = plt.figure(figsize=(20,5))
+axes = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+sns.barplot(x='Age',y='EstimatedSalary',data=SN_Ads_Mean)
+
+#Below graph shows percenatge of people purchased in each age group 
+fig = plt.figure(figsize=(20,5))
+axes = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+sns.barplot(x='Age',y='Purchased',data=SN_Ads_Mean)
+
+from sklearn.model_selection import train_test_split
+
+# Data set is randomly sampled in to training and testing data set
+X_train, X_test, y_train, y_test = train_test_split(SN_Ads.drop('Purchased',axis=1), 
+                                                    SN_Ads['Purchased'], test_size=0.30, 
+                                                    random_state=101)
+
+from sklearn.linear_model import LogisticRegression
+
+# Logistic Regression is performed on the training data set
+logmodel = LogisticRegression()
+logmodel.fit(X_train,y_train)
+
+# Target variable is predicted using the model on testinf data set
+predictions = logmodel.predict(X_test)
+
+from sklearn.metrics import classification_report
+
+#Classification report of the model is displayed below
+print(classification_report(y_test,predictions))
+
+# Accuracy of Predicted vs testing set
+metrics.accuracy_score(y_test, predictions)
+
+# Area Under the Receiver Operating Characteristic Curve (ROC AUC) from prediction scores
+probs = logmodel.predict_proba(X_test)
+metrics.roc_auc_score(y_test, probs[:, 1])
+
+#Confusion Matrix
+metrics.confusion_matrix(y_test, predictions)
+
+# Logistic Regression Coefficients of the variables
+X_train.columns,logmodel.coef_
+
+# Model evaluation using 10-fold cross-validation (to see if the accuracy holds up more rigorously)
+scores = cross_val_score(LogisticRegression(), X_test, y_test, scoring='accuracy', cv=10)
+print(scores)
+print(scores.mean())
